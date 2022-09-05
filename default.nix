@@ -1,3 +1,5 @@
+{ stdenv, requireFile, openjdk8, gnutar, mxM ? "4000M" }:
+
 stdenv.mkDerivation rec {
   name = "ace-${version}";
   version = "3.0";
@@ -7,10 +9,34 @@ stdenv.mkDerivation rec {
     message = "Download and run $ nix-store --add-fixed sha256 ~/Downloads/${name}.tar.gz";
   };
 
-  nativeBuildInputs = [ openjdk8 ];
+  buildInputs = [ gnutar openjdk8 ];
+  #buildInputs = [ tar ];
 
-  buildPhase = ''
+  #unpackPhase = "tar $out";
+  buildPhase = let
+    mkSubstitution = bin: ''substituteInPlace ${bin} \
+        --replace java ${openjdk8}/bin/java \
+        --replace '`dirname $0`' $out/share \
+        --replace Xmx1512m Xmx${mxM}'';
+  in ''
     mkdir -p $out/bin
-    cp -r $src $out/bin
+    mkdir -p $out/share
+    ${mkSubstitution "compile"}
+    ${mkSubstitution "evaluate"}
+    ${mkSubstitution "preprocess_noisy"}
+    ${mkSubstitution "uai08_pe"}
+    ${mkSubstitution "uai08_marginals"}
+    ${mkSubstitution "uai08_convert"}
+  '';
+  installPhase = let
+    installBin = bin: "mv $out/share/${bin} $out/bin";
+  in ''
+    cp -r . $out/share
+    ${installBin "compile"}
+    ${installBin "evaluate"}
+    ${installBin "preprocess_noisy"}
+    ${installBin "uai08_pe"}
+    ${installBin "uai08_marginals"}
+    ${installBin "uai08_convert"}
   '';
 }
